@@ -100,6 +100,8 @@ async function fetchTimeline(
   }
 }
 
+const DIFF_CACHE = 'sherlook-diff-v1'
+
 async function fetchDiff(
   token: string,
   owner: string,
@@ -107,19 +109,25 @@ async function fetchDiff(
   base: string,
   head: string,
 ): Promise<string> {
-  const res = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/compare/${base}...${head}`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github.diff',
-      },
+  const url = `https://api.github.com/repos/${owner}/${repo}/compare/${base}...${head}`
+
+  const cache = await caches.open(DIFF_CACHE)
+  const cached = await cache.match(url)
+  if (cached) return cached.text()
+
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github.diff',
     },
-  )
+  })
 
   if (!res.ok) {
     throw new Error(`GitHub compare error: ${res.status} ${res.statusText}`)
   }
+
+  // Cache the response (clone since body can only be consumed once)
+  await cache.put(url, res.clone())
 
   return res.text()
 }
