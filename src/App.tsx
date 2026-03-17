@@ -122,19 +122,18 @@ interface TimelineRow {
 function buildTimeline(pr: PrData): TimelineRow[] {
   const rows: TimelineRow[] = []
 
-  if (pr.events.length === 0) return rows
-
-  // Row 1: the initial commit (beforeCommit of the first force push)
-  const first = pr.events[0]
+  // Row 1: first known commit (beforeCommit of first force push, or base ref)
+  const initial = pr.events[0]?.beforeCommit ?? pr.baseRef
+  if (!initial) throw new Error('PR has no base ref and no force push history')
   rows.push({
-    commit: first.beforeCommit?.abbreviatedOid ?? '?',
-    oid: first.beforeCommit?.oid ?? '',
+    commit: initial.abbreviatedOid,
+    oid: initial.oid,
     date: formatDate(pr.createdAt),
     author: pr.author?.login ?? 'unknown',
     label: 'initial',
   })
 
-  // Rows 2+: each force push's afterCommit
+  // Remaining rows: each force push's afterCommit
   for (const ev of pr.events) {
     rows.push({
       commit: ev.afterCommit?.abbreviatedOid ?? '?',
@@ -378,7 +377,7 @@ function App() {
         </div>
       </form>
 
-      {(loading || timeline.length > 0 || (prData && timeline.length === 0) || (prUrl && !token.trim()) || error) && (
+      {(loading || timeline.length > 0 || (prUrl && !token.trim()) || error) && (
         <div className="section">
           <h2>## timeline</h2>
           {!token.trim() && prUrl && (
@@ -386,9 +385,6 @@ function App() {
           )}
           {error && <div className="error">{error}</div>}
           {loading && <div className="dim">Loading...</div>}
-          {!loading && prData && timeline.length === 0 && (
-            <div>No force pushes found on this PR.</div>
-          )}
           {!loading && timeline.length > 0 && (
           <table className="timeline">
             <thead>
