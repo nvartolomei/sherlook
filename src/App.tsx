@@ -472,7 +472,7 @@ function App() {
             )
           })()}
           {!diffLoading && !diffError && !diff && baseOid && (
-            <div className="dim">No diff.</div>
+            <div className="dim">Empty diff.</div>
           )}
         </div>
         )
