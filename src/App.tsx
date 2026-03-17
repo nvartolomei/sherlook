@@ -224,7 +224,9 @@ function App() {
     }
     const qs = params.toString()
     const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
-    window.history.replaceState(null, '', url)
+    if (url !== window.location.pathname + (window.location.search || '')) {
+      window.history.pushState(null, '', url)
+    }
   }
 
   useEffect(() => {
@@ -246,6 +248,7 @@ function App() {
     setLoading(true)
     try {
       const data = await fetchTimeline(token.trim(), parsed.owner, parsed.repo, parsed.number)
+      document.title = `+- ${parsed.owner}/${parsed.repo}#${parsed.number} — sherlook`
       setPrData(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -262,6 +265,19 @@ function App() {
 
   useEffect(() => {
     if (prUrl && token) doFetch(prUrl)
+
+    function handlePopState() {
+      const params = new URLSearchParams(window.location.search)
+      const pull = params.get('pull') || ''
+      const commit = params.get('commit') || ''
+      const base = params.get('base') || ''
+      setPrUrl(pull)
+      setSelectedOid(commit)
+      setBaseOid(base)
+      if (pull && token) doFetch(pull)
+    }
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Fetch diff when base and selected commit are set
