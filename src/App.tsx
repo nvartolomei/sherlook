@@ -25,6 +25,7 @@ interface BaseRef {
 }
 
 interface PrData {
+  title: string
   createdAt: string
   author: { login: string } | null
   baseRefName: string
@@ -50,6 +51,7 @@ async function fetchTimeline(
   const query = `{
     repository(owner: "${owner}", name: "${repo}") {
       pullRequest(number: ${number}) {
+        title
         createdAt
         author { login }
         baseRefName
@@ -91,6 +93,7 @@ async function fetchTimeline(
 
   const pr = json.data.repository.pullRequest
   return {
+    title: pr.title,
     createdAt: pr.createdAt,
     author: pr.author,
     baseRefName: pr.baseRefName,
@@ -225,6 +228,22 @@ function ExtLink({ href, children }: { href: string; children: React.ReactNode }
   return <a href={href} target="_blank" rel="noreferrer" className="ext-link">[{children}]</a>
 }
 
+const RECENT_KEY = 'recent_prs'
+const RECENT_MAX = 10
+
+interface RecentPr { url: string; title: string }
+
+function getRecentPrs(): RecentPr[] {
+  try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]') }
+  catch { return [] }
+}
+
+function addRecentPr(url: string, title: string) {
+  const recent = getRecentPrs().filter((r) => r.url !== url)
+  recent.unshift({ url, title })
+  localStorage.setItem(RECENT_KEY, JSON.stringify(recent.slice(0, RECENT_MAX)))
+}
+
 function App() {
   const [token, setToken] = useState(() => localStorage.getItem('gh_token') || '')
   const [prUrl, setPrUrl] = useState(() => {
@@ -281,6 +300,7 @@ function App() {
     try {
       const data = await fetchTimeline(token.trim(), parsed.owner, parsed.repo, parsed.number)
       document.title = `+- ${parsed.owner}/${parsed.repo}#${parsed.number} — sherlook`
+      addRecentPr(url, data.title)
       setPrData(data)
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err))
@@ -411,6 +431,31 @@ function App() {
           <button type="submit">Fetch</button>
         </div>
       </form>
+
+      {!prData && !loading && getRecentPrs().length > 0 && (
+        <div className="section">
+          <h2>## recently reviewed</h2>
+          <table className="timeline">
+            <thead>
+              <tr>
+                <th>PR</th>
+                <th>title</th>
+              </tr>
+            </thead>
+            <tbody>
+              {getRecentPrs().map(({ url, title }) => {
+                const p = parsePrUrl(url)
+                return (
+                  <tr key={url} className="clickable" onClick={() => { setPrUrl(url); syncUrl({ pull: url }); doFetch(url) }}>
+                    <td className="nowrap-parts">{p ? <><span>{p.owner}</span>/<wbr/><span>{p.repo}#{p.number}</span></> : url}</td>
+                    <td>{title}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {(loading || timeline.length > 0 || (prUrl && !token.trim()) || error) && (
         <div className="section">

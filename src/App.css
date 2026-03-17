@@ -153,6 +153,11 @@ button {
 
 .timeline td {
   padding: 2px 12px 2px 0;
+  vertical-align: top;
+}
+
+.nowrap-parts > span {
+  white-space: nowrap;
 }
 
 .timeline .commit {
