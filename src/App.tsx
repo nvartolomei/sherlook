@@ -1,4 +1,4 @@
-import { useState, useEffect, FormEvent } from 'react'
+import { useState, useEffect, type SyntheticEvent } from 'react'
 import { diffLines } from 'diff'
 
 interface ForcePushEvent {
@@ -133,6 +133,25 @@ function parseDiffFiles(raw: string): DiffFile[] {
   return files
 }
 
+function stripPatchMeta(patch: string): string {
+  return patch
+    .split('\n')
+    .filter((line) =>
+      !line.startsWith('diff --git ') &&
+      !line.startsWith('index ') &&
+      !line.startsWith('--- ') &&
+      !line.startsWith('+++ ') &&
+      !line.startsWith('new file mode ') &&
+      !line.startsWith('deleted file mode ') &&
+      !line.startsWith('old mode ') &&
+      !line.startsWith('new mode ') &&
+      !line.startsWith('similarity index ') &&
+      !line.startsWith('rename from ') &&
+      !line.startsWith('rename to ')
+    )
+    .join('\n')
+}
+
 function computeInterdiff(patchA: string, patchB: string): string {
   const filesA = new Map(parseDiffFiles(patchA).map((f) => [f.path, f.chunks]))
   const filesB = new Map(parseDiffFiles(patchB).map((f) => [f.path, f.chunks]))
@@ -142,8 +161,8 @@ function computeInterdiff(patchA: string, patchB: string): string {
   const result: string[] = []
 
   for (const path of allPaths) {
-    const a = filesA.get(path) || ''
-    const b = filesB.get(path) || ''
+    const a = stripPatchMeta(filesA.get(path) || '')
+    const b = stripPatchMeta(filesB.get(path) || '')
     if (a === b) continue
 
     result.push(`diff --interdiff a/${path} b/${path}`)
@@ -239,6 +258,10 @@ function formatDate(iso: string) {
   return new Date(iso).toISOString().replace('T', ' ').slice(0, 16)
 }
 
+function ExtLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return <a href={href} target="_blank" rel="noreferrer" className="ext-link">[{children}]</a>
+}
+
 function App() {
   const [token, setToken] = useState(() => localStorage.getItem('gh_token') || '')
   const [prUrl, setPrUrl] = useState(() => {
@@ -262,36 +285,26 @@ function App() {
     localStorage.setItem('gh_token', token)
   }, [token])
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search)
-    if (prUrl) {
-      params.set('pull', prUrl)
-    } else {
-      params.delete('pull')
-    }
-    if (selectedOid) {
-      params.set('commit', selectedOid)
-    } else {
-      params.delete('commit')
-    }
-    if (baseOid) {
-      params.set('base', baseOid)
-    } else {
-      params.delete('base')
+  function syncUrl(overrides: Record<string, string> = {}) {
+    const state = { pull: prUrl, commit: selectedOid, base: baseOid, ...overrides }
+    const params = new URLSearchParams()
+    for (const [k, v] of Object.entries(state)) {
+      if (v) params.set(k, v)
     }
     const qs = params.toString()
     const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname
     window.history.replaceState(null, '', url)
-  }, [prUrl, selectedOid, baseOid])
+  }
+
+  useEffect(() => {
+    syncUrl()
+  }, [selectedOid, baseOid]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function doFetch(url: string) {
     setError('')
     setPrData(null)
 
-    if (!token.trim()) {
-      setError('GitHub token is required.')
-      return
-    }
+    if (!token.trim()) return
 
     const parsed = parsePrUrl(url)
     if (!parsed) {
@@ -310,8 +323,9 @@ function App() {
     }
   }
 
-  function handleSubmit(e: FormEvent) {
+  function handleSubmit(e: SyntheticEvent) {
     e.preventDefault()
+    syncUrl({ pull: prUrl })
     doFetch(prUrl)
   }
 
@@ -370,8 +384,15 @@ function App() {
   }, [selectedOid, prData]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <>
-      <h1><img src="/git.svg" alt="git" className="logo" /> sherlook</h1>
+    <div className="app">
+      <h1>
+        <a href="/"><img src="/git.svg" alt="git" className="logo" /> sherlook</a>
+        <ExtLink href="https://github.com/nvartolomei/sherlook">source</ExtLink>
+      </h1>
+      <p className="description">
+        Someone force-pushed a PR and now the diff is 10,000 lines of rebased noise?
+        Sherlook diffs the diffs to show only what actually changed between force pushes.
+      </p>
 
       <form onSubmit={handleSubmit}>
         <div className="section">
@@ -386,17 +407,11 @@ function App() {
             />
           </label>
           {' '}
-          <a
-            href="https://github.com/settings/personal-access-tokens/new"
-            target="_blank"
-            rel="noreferrer"
-          >
-            create token
-          </a>
+          <ExtLink href="https://github.com/settings/personal-access-tokens/new">create token</ExtLink>
           <div className="helper">
             Create a fine-grained token: Settings &rarr; Developer settings &rarr; Fine-grained
-            tokens &rarr; Generate. Set "Public Repositories (read-only)" under Repository access.
-            No extra permissions needed.
+            tokens &rarr; Generate. Set "Public Repositories (<strong>read-only</strong>)" under Repository access.
+            No extra permissions needed. Your token stays in localStorage and is only sent to the GitHub API.
           </div>
         </div>
 
@@ -416,17 +431,18 @@ function App() {
         </div>
       </form>
 
-      {error && <div className="error">{error}</div>}
-
-      {loading && <div>Loading...</div>}
-
-      {!loading && prData && timeline.length === 0 && (
-        <div>No force pushes found on this PR.</div>
-      )}
-
-      {!loading && timeline.length > 0 && (
+      {(loading || timeline.length > 0 || (prData && timeline.length === 0) || (prUrl && !token.trim()) || error) && (
         <div className="section">
           <h2>## timeline</h2>
+          {!token.trim() && prUrl && (
+            <div className="error">Configure a GitHub token to load this PR.</div>
+          )}
+          {error && <div className="error">{error}</div>}
+          {loading && <div className="dim">Loading...</div>}
+          {!loading && prData && timeline.length === 0 && (
+            <div>No force pushes found on this PR.</div>
+          )}
+          {!loading && timeline.length > 0 && (
           <table className="timeline">
             <thead>
               <tr>
@@ -458,23 +474,26 @@ function App() {
               ))}
             </tbody>
           </table>
+          )}
         </div>
       )}
 
-      {selectedOid && (() => {
+      {!loading && selectedOid && prData && baseOptions.length > 0 && (() => {
         const isInterdiff = prData?.baseRef && baseOid !== prData.baseRef.oid
         return (
         <div className="section">
           <h2 className="diff-heading">
-            ## {isInterdiff ? 'interdiff' : 'diff'}{' '}
-            <span className="base-selector">
-              <select value={baseOid} onChange={(e) => setBaseOid(e.target.value)}>
-                {baseOptions.map((opt) => (
-                  <option key={opt.oid} value={opt.oid}>{opt.label}</option>
-                ))}
-              </select>
-              {' '}&rarr; {selectedOid.slice(0, 7)}
-            </span>
+            ## {isInterdiff ? 'interdiff' : 'diff'}
+            {baseOptions.length > 0 && (
+              <span className="base-selector">
+                <select value={baseOid} onChange={(e) => setBaseOid(e.target.value)}>
+                  {baseOptions.map((opt) => (
+                    <option key={opt.oid} value={opt.oid}>{opt.label}</option>
+                  ))}
+                </select>
+                {' '}&rarr; {selectedOid.slice(0, 7)}
+              </span>
+            )}
           </h2>
           {diffLoading && <div className="dim">Loading diff...</div>}
           {diffError && <div className="error">{diffError}</div>}
@@ -505,27 +524,33 @@ function App() {
                     </div>
                   ))}
                 </div>
-                <pre className="diff">
-                  {visibleDiff.split('\n').map((line, i) => {
-                    let cls = ''
-                    if (line.startsWith('diff --interdiff') || line.startsWith('diff --git')) cls = 'diff-file'
-                    else if (line.startsWith('+++ ') || line.startsWith('--- ')) cls = 'diff-file'
-                    else if (line.startsWith('@@')) cls = 'diff-hunk'
-                    else if (line.startsWith('+')) cls = 'diff-add'
-                    else if (line.startsWith('-')) cls = 'diff-del'
-                    return <div key={i} className={cls}>{line}</div>
-                  })}
-                </pre>
+                <div className="diff">
+                  <div className="diff-inner">
+                    {visibleDiff.split('\n').map((line, i) => {
+                      let cls = ''
+                      if (line.startsWith('diff --interdiff') || line.startsWith('diff --git')) cls = 'diff-file'
+                      else if (line.startsWith('+++ ') || line.startsWith('--- ')) cls = 'diff-file'
+                      else if (line.startsWith('@@')) cls = 'diff-hunk'
+                      else if (line.startsWith('+')) cls = 'diff-add'
+                      else if (line.startsWith('-')) cls = 'diff-del'
+                      return <div key={i} className={cls}>{line}</div>
+                    })}
+                  </div>
+                </div>
               </>
             )
           })()}
-          {!diffLoading && !diffError && !diff && selectedOid && baseOid && (
+          {!diffLoading && !diffError && !diff && baseOid && (
             <div className="dim">No diff.</div>
           )}
         </div>
         )
       })()}
-    </>
+      <footer className="footer">
+        Git Logo by <ExtLink href="https://twitter.com/jasonlong">Jason Long</ExtLink>,{' '}
+        <ExtLink href="https://creativecommons.org/licenses/by/3.0/">CC BY 3.0</ExtLink>
+      </footer>
+    </div>
   )
 }
 
