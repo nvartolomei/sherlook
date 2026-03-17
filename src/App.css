@@ -1,0 +1,122 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: monospace;
+  font-size: 14px;
+  padding: 24px;
+  max-width: 720px;
+  margin: 0 auto;
+  color: #222;
+}
+
+h1 {
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.logo {
+  width: 24px;
+  height: 24px;
+}
+
+h2 {
+  margin-bottom: 8px;
+}
+
+input {
+  font-family: monospace;
+  font-size: 14px;
+  padding: 4px 8px;
+  border: 1px solid #999;
+}
+
+button {
+  font-family: monospace;
+  font-size: 14px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.section {
+  margin-bottom: 24px;
+}
+
+.helper {
+  font-size: 12px;
+  color: #666;
+  margin-top: 4px;
+}
+
+.error {
+  color: red;
+}
+
+.dim {
+  color: #999;
+}
+
+.timeline {
+  border-collapse: collapse;
+  margin-top: 4px;
+  width: 100%;
+}
+
+.timeline th {
+  text-align: left;
+  font-weight: normal;
+  color: #999;
+  padding: 2px 12px 2px 0;
+  border-bottom: 1px solid #ddd;
+}
+
+.timeline td {
+  padding: 2px 12px 2px 0;
+}
+
+.timeline .commit {
+  font-weight: bold;
+}
+
+.timeline .label {
+  text-align: right;
+}
+
+.timeline .clickable {
+  cursor: pointer;
+}
+
+.timeline .clickable:hover td {
+  background: #fafafa;
+}
+
+.timeline .selected td {
+  background: #f5f5f5;
+}
+
+select {
+  font-family: monospace;
+  font-size: 14px;
+  padding: 2px 4px;
+  border: 1px solid #999;
+}
+
+.diff-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.base-selector {
+  font-size: 14px;
+  font-weight: normal;
+}
+
+.diff-placeholder {
+  color: #999;
+}
