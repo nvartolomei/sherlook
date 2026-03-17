@@ -119,18 +119,46 @@ interface DiffFile {
 
 function parseDiffFiles(raw: string): DiffFile[] {
   const files: DiffFile[] = []
-  const parts = raw.split(/^(?=diff --git )/m)
+  const parts = raw.split(/^(?=diff --(git|interdiff) )/m)
   for (const part of parts) {
-    if (!part.startsWith('diff --git ')) continue
-    const m = part.match(/^diff --git a\/.+ b\/(.+)/)
+    if (!part.match(/^diff --(git|interdiff) /)) continue
+    const m = part.match(/^diff --(git|interdiff) a\/.+ b\/(.+)/)
     let added = 0, removed = 0
     for (const line of part.split('\n')) {
       if (line.startsWith('+') && !line.startsWith('+++ ')) added++
       else if (line.startsWith('-') && !line.startsWith('--- ')) removed++
     }
-    files.push({ path: m ? m[1] : '?', chunks: part, added, removed })
+    files.push({ path: m ? m[2] : '?', chunks: part, added, removed })
   }
   return files
+}
+
+function computeInterdiff(patchA: string, patchB: string): string {
+  const filesA = new Map(parseDiffFiles(patchA).map((f) => [f.path, f.chunks]))
+  const filesB = new Map(parseDiffFiles(patchB).map((f) => [f.path, f.chunks]))
+
+  const allPaths = [...new Set([...filesA.keys(), ...filesB.keys()])].sort()
+
+  const result: string[] = []
+
+  for (const path of allPaths) {
+    const a = filesA.get(path) || ''
+    const b = filesB.get(path) || ''
+    if (a === b) continue
+
+    result.push(`diff --interdiff a/${path} b/${path}`)
+
+    const changes = diffLines(a, b)
+    for (const change of changes) {
+      const prefix = change.added ? '+' : change.removed ? '-' : ' '
+      const text = change.value.endsWith('\n') ? change.value.slice(0, -1) : change.value
+      for (const line of text.split('\n')) {
+        result.push(prefix + line)
+      }
+    }
+  }
+
+  return result.join('\n')
 }
 
 interface TimelineRow {
@@ -293,19 +321,29 @@ function App() {
 
   // Fetch diff when base and selected commit are set
   useEffect(() => {
-    if (!baseOid || !selectedOid || !token || !prUrl) {
+    if (!baseOid || !selectedOid || !token || !prUrl || !prData) {
       setDiff('')
       return
     }
     const parsed = parsePrUrl(prUrl)
     if (!parsed) return
 
+    const isInterdiff = prData.baseRef && baseOid !== prData.baseRef.oid
+    const targetOid = prData.baseRef?.oid
+
     let cancelled = false
     setDiffLoading(true)
     setDiffError('')
     setDiff('')
 
-    fetchDiff(token.trim(), parsed.owner, parsed.repo, baseOid, selectedOid)
+    const work = isInterdiff && targetOid
+      ? Promise.all([
+          fetchDiff(token.trim(), parsed.owner, parsed.repo, targetOid, baseOid),
+          fetchDiff(token.trim(), parsed.owner, parsed.repo, targetOid, selectedOid),
+        ]).then(([diffA, diffB]) => computeInterdiff(diffA, diffB))
+      : fetchDiff(token.trim(), parsed.owner, parsed.repo, baseOid, selectedOid)
+
+    work
       .then((text) => {
         if (!cancelled) { setDiff(text); setSelectedFile(null) }
       })
@@ -317,7 +355,7 @@ function App() {
       })
 
     return () => { cancelled = true }
-  }, [baseOid, selectedOid, token, prUrl])
+  }, [baseOid, selectedOid, token, prUrl, prData])
 
   const timeline = prData ? buildTimeline(prData) : []
   const baseOptions = prData && selectedOid ? getBaseOptions(prData, timeline, selectedOid) : []
@@ -423,10 +461,12 @@ function App() {
         </div>
       )}
 
-      {selectedOid && (
+      {selectedOid && (() => {
+        const isInterdiff = prData?.baseRef && baseOid !== prData.baseRef.oid
+        return (
         <div className="section">
           <h2 className="diff-heading">
-            ## diff{' '}
+            ## {isInterdiff ? 'interdiff' : 'diff'}{' '}
             <span className="base-selector">
               <select value={baseOid} onChange={(e) => setBaseOid(e.target.value)}>
                 {baseOptions.map((opt) => (
@@ -468,8 +508,8 @@ function App() {
                 <pre className="diff">
                   {visibleDiff.split('\n').map((line, i) => {
                     let cls = ''
-                    if (line.startsWith('+++ ') || line.startsWith('--- ')) cls = 'diff-file'
-                    else if (line.startsWith('diff --git')) cls = 'diff-file'
+                    if (line.startsWith('diff --interdiff') || line.startsWith('diff --git')) cls = 'diff-file'
+                    else if (line.startsWith('+++ ') || line.startsWith('--- ')) cls = 'diff-file'
                     else if (line.startsWith('@@')) cls = 'diff-hunk'
                     else if (line.startsWith('+')) cls = 'diff-add'
                     else if (line.startsWith('-')) cls = 'diff-del'
@@ -483,7 +523,8 @@ function App() {
             <div className="dim">No diff.</div>
           )}
         </div>
-      )}
+        )
+      })()}
     </>
   )
 }
