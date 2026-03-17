@@ -4,6 +4,10 @@
   padding: 0;
 }
 
+html {
+  overflow-x: hidden;
+}
+
 body {
   font-family: monospace;
   font-size: 14px;
@@ -117,6 +121,76 @@ select {
   font-weight: normal;
 }
 
-.diff-placeholder {
-  color: #999;
+.file-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.file-entry {
+  padding: 2px 8px;
+  cursor: pointer;
+  border: 1px solid #ddd;
+  font-size: 12px;
+  color: #555;
+}
+
+.file-entry:hover {
+  background: #fafafa;
+  border-color: #999;
+}
+
+.file-entry.file-selected {
+  background: #f0f0f0;
+  border-color: #999;
+  color: #222;
+}
+
+.file-stat {
+  font-size: 11px;
+}
+
+.file-stat-add {
+  color: #1a7f37;
+}
+
+.file-stat-del {
+  color: #cf222e;
+  margin-left: 2px;
+}
+
+.diff {
+  font-size: 13px;
+  line-height: 1.4;
+  overflow-x: auto;
+  border: 1px solid #ddd;
+  padding: 8px 24px;
+  width: min(100vw, 1200px);
+  margin-left: calc(50% - min(50vw, 600px));
+  margin-right: calc(50% - min(50vw, 600px));
+  white-space: pre;
+}
+
+.diff > div {
+  padding: 0 4px;
+}
+
+.diff-add {
+  background: #e6ffec;
+  color: #1a7f37;
+}
+
+.diff-del {
+  background: #ffebe9;
+  color: #cf222e;
+}
+
+.diff-hunk {
+  color: #8250df;
+}
+
+.diff-file {
+  font-weight: bold;
+  color: #656d76;
 }

@@ -1,4 +1,5 @@
 import { useState, useEffect, FormEvent } from 'react'
+import { diffLines } from 'diff'
 
 interface ForcePushEvent {
   createdAt: string
@@ -83,6 +84,53 @@ async function fetchTimeline(
     baseRef: baseTarget ? { oid: baseTarget.oid, abbreviatedOid: baseTarget.abbreviatedOid } : null,
     events: pr.timelineItems.nodes,
   }
+}
+
+async function fetchDiff(
+  token: string,
+  owner: string,
+  repo: string,
+  base: string,
+  head: string,
+): Promise<string> {
+  const res = await fetch(
+    `https://api.github.com/repos/${owner}/${repo}/compare/${base}...${head}`,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/vnd.github.diff',
+      },
+    },
+  )
+
+  if (!res.ok) {
+    throw new Error(`GitHub compare error: ${res.status} ${res.statusText}`)
+  }
+
+  return res.text()
+}
+
+interface DiffFile {
+  path: string
+  chunks: string
+  added: number
+  removed: number
+}
+
+function parseDiffFiles(raw: string): DiffFile[] {
+  const files: DiffFile[] = []
+  const parts = raw.split(/^(?=diff --git )/m)
+  for (const part of parts) {
+    if (!part.startsWith('diff --git ')) continue
+    const m = part.match(/^diff --git a\/.+ b\/(.+)/)
+    let added = 0, removed = 0
+    for (const line of part.split('\n')) {
+      if (line.startsWith('+') && !line.startsWith('+++ ')) added++
+      else if (line.startsWith('-') && !line.startsWith('--- ')) removed++
+    }
+    files.push({ path: m ? m[1] : '?', chunks: part, added, removed })
+  }
+  return files
 }
 
 interface TimelineRow {
@@ -177,6 +225,10 @@ function App() {
   const [prData, setPrData] = useState<PrData | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [diff, setDiff] = useState('')
+  const [diffLoading, setDiffLoading] = useState(false)
+  const [diffError, setDiffError] = useState('')
+  const [selectedFile, setSelectedFile] = useState<string | null>(null)
 
   useEffect(() => {
     localStorage.setItem('gh_token', token)
@@ -238,6 +290,34 @@ function App() {
   useEffect(() => {
     if (prUrl && token) doFetch(prUrl)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch diff when base and selected commit are set
+  useEffect(() => {
+    if (!baseOid || !selectedOid || !token || !prUrl) {
+      setDiff('')
+      return
+    }
+    const parsed = parsePrUrl(prUrl)
+    if (!parsed) return
+
+    let cancelled = false
+    setDiffLoading(true)
+    setDiffError('')
+    setDiff('')
+
+    fetchDiff(token.trim(), parsed.owner, parsed.repo, baseOid, selectedOid)
+      .then((text) => {
+        if (!cancelled) { setDiff(text); setSelectedFile(null) }
+      })
+      .catch((err) => {
+        if (!cancelled) setDiffError(err instanceof Error ? err.message : String(err))
+      })
+      .finally(() => {
+        if (!cancelled) setDiffLoading(false)
+      })
+
+    return () => { cancelled = true }
+  }, [baseOid, selectedOid, token, prUrl])
 
   const timeline = prData ? buildTimeline(prData) : []
   const baseOptions = prData && selectedOid ? getBaseOptions(prData, timeline, selectedOid) : []
@@ -356,9 +436,52 @@ function App() {
               {' '}&rarr; {selectedOid.slice(0, 7)}
             </span>
           </h2>
-          <div className="diff-placeholder">
-            Diff will appear here.
-          </div>
+          {diffLoading && <div className="dim">Loading diff...</div>}
+          {diffError && <div className="error">{diffError}</div>}
+          {!diffLoading && !diffError && diff && (() => {
+            const files = parseDiffFiles(diff)
+            const visibleDiff = selectedFile
+              ? files.find((f) => f.path === selectedFile)?.chunks ?? ''
+              : diff
+            return (
+              <>
+                <div className="file-picker">
+                  <div
+                    className={`file-entry ${selectedFile === null ? 'file-selected' : ''}`}
+                    onClick={() => setSelectedFile(null)}
+                  >
+                    all files ({files.length})
+                  </div>
+                  {files.map((f) => (
+                    <div
+                      key={f.path}
+                      className={`file-entry ${selectedFile === f.path ? 'file-selected' : ''}`}
+                      onClick={() => setSelectedFile(f.path)}
+                    >
+                      {f.path}
+                      {' '}
+                      <span className="file-stat file-stat-add">+{f.added}</span>
+                      <span className="file-stat file-stat-del">-{f.removed}</span>
+                    </div>
+                  ))}
+                </div>
+                <pre className="diff">
+                  {visibleDiff.split('\n').map((line, i) => {
+                    let cls = ''
+                    if (line.startsWith('+++ ') || line.startsWith('--- ')) cls = 'diff-file'
+                    else if (line.startsWith('diff --git')) cls = 'diff-file'
+                    else if (line.startsWith('@@')) cls = 'diff-hunk'
+                    else if (line.startsWith('+')) cls = 'diff-add'
+                    else if (line.startsWith('-')) cls = 'diff-del'
+                    return <div key={i} className={cls}>{line}</div>
+                  })}
+                </pre>
+              </>
+            )
+          })()}
+          {!diffLoading && !diffError && !diff && selectedOid && baseOid && (
+            <div className="dim">No diff.</div>
+          )}
         </div>
       )}
     </>
