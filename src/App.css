@@ -140,6 +140,7 @@ button {
   border-collapse: collapse;
   margin-top: 4px;
   width: 100%;
+  user-select: none;
 }
 
 .timeline th {
