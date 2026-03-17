@@ -1,5 +1,5 @@
 import { useState, useEffect, type SyntheticEvent } from 'react'
-import { diffLines } from 'diff'
+import { computeInterdiff, parseDiffFiles } from './interdiff'
 
 interface ForcePushEvent {
   createdAt: string
@@ -110,75 +110,6 @@ async function fetchDiff(
   return res.text()
 }
 
-interface DiffFile {
-  path: string
-  chunks: string
-  added: number
-  removed: number
-}
-
-function parseDiffFiles(raw: string): DiffFile[] {
-  const files: DiffFile[] = []
-  const parts = raw.split(/^(?=diff --(git|interdiff) )/m)
-  for (const part of parts) {
-    if (!part.match(/^diff --(git|interdiff) /)) continue
-    const m = part.match(/^diff --(git|interdiff) a\/.+ b\/(.+)/)
-    let added = 0, removed = 0
-    for (const line of part.split('\n')) {
-      if (line.startsWith('+') && !line.startsWith('+++ ')) added++
-      else if (line.startsWith('-') && !line.startsWith('--- ')) removed++
-    }
-    files.push({ path: m ? m[2] : '?', chunks: part, added, removed })
-  }
-  return files
-}
-
-function stripPatchMeta(patch: string): string {
-  return patch
-    .split('\n')
-    .filter((line) =>
-      !line.startsWith('diff --git ') &&
-      !line.startsWith('index ') &&
-      !line.startsWith('--- ') &&
-      !line.startsWith('+++ ') &&
-      !line.startsWith('new file mode ') &&
-      !line.startsWith('deleted file mode ') &&
-      !line.startsWith('old mode ') &&
-      !line.startsWith('new mode ') &&
-      !line.startsWith('similarity index ') &&
-      !line.startsWith('rename from ') &&
-      !line.startsWith('rename to ')
-    )
-    .join('\n')
-}
-
-function computeInterdiff(patchA: string, patchB: string): string {
-  const filesA = new Map(parseDiffFiles(patchA).map((f) => [f.path, f.chunks]))
-  const filesB = new Map(parseDiffFiles(patchB).map((f) => [f.path, f.chunks]))
-
-  const allPaths = [...new Set([...filesA.keys(), ...filesB.keys()])].sort()
-
-  const result: string[] = []
-
-  for (const path of allPaths) {
-    const a = stripPatchMeta(filesA.get(path) || '')
-    const b = stripPatchMeta(filesB.get(path) || '')
-    if (a === b) continue
-
-    result.push(`diff --interdiff a/${path} b/${path}`)
-
-    const changes = diffLines(a, b)
-    for (const change of changes) {
-      const prefix = change.added ? '+' : change.removed ? '-' : ' '
-      const text = change.value.endsWith('\n') ? change.value.slice(0, -1) : change.value
-      for (const line of text.split('\n')) {
-        result.push(prefix + line)
-      }
-    }
-  }
-
-  return result.join('\n')
-}
 
 interface TimelineRow {
   commit: string
