@@ -1,6 +1,16 @@
 import { useState, useEffect, type SyntheticEvent } from 'react'
 import { computeInterdiff, parseDiffFiles } from './interdiff'
 
+const LABEL_INITIAL = 'initial'
+const LABEL_FORCE = 'force'
+const LABEL_TIP = 'tip'
+
+const LABEL_TOOLTIPS: Record<string, string> = {
+  [LABEL_INITIAL]: 'First known commit on this PR',
+  [LABEL_FORCE]: 'Result of a force push',
+  [LABEL_TIP]: 'Current PR head (contains extra commits after previous timeline entry)',
+}
+
 interface ForcePushEvent {
   createdAt: string
   actor: { login: string } | null
@@ -11,6 +21,7 @@ interface ForcePushEvent {
 interface BaseRef {
   oid: string
   abbreviatedOid: string
+  date?: string
 }
 
 interface PrData {
@@ -18,6 +29,7 @@ interface PrData {
   author: { login: string } | null
   baseRefName: string
   baseRef: BaseRef | null
+  headRef: BaseRef | null
   events: ForcePushEvent[]
 }
 
@@ -41,7 +53,9 @@ async function fetchTimeline(
         createdAt
         author { login }
         baseRefName
-        baseRef { target { ... on Commit { oid abbreviatedOid } } }
+        baseRefOid
+        headRefOid
+        commits(last: 1) { nodes { commit { committedDate } } }
         timelineItems(itemTypes: HEAD_REF_FORCE_PUSHED_EVENT, first: 50) {
           nodes {
             ... on HeadRefForcePushedEvent {
@@ -76,12 +90,12 @@ async function fetchTimeline(
   }
 
   const pr = json.data.repository.pullRequest
-  const baseTarget = pr.baseRef?.target
   return {
     createdAt: pr.createdAt,
     author: pr.author,
     baseRefName: pr.baseRefName,
-    baseRef: baseTarget ? { oid: baseTarget.oid, abbreviatedOid: baseTarget.abbreviatedOid } : null,
+    baseRef: pr.baseRefOid ? { oid: pr.baseRefOid, abbreviatedOid: pr.baseRefOid.slice(0, 7) } : null,
+    headRef: pr.headRefOid ? { oid: pr.headRefOid, abbreviatedOid: pr.headRefOid.slice(0, 7), date: pr.commits?.nodes?.[0]?.commit?.committedDate } : null,
     events: pr.timelineItems.nodes,
   }
 }
@@ -122,15 +136,15 @@ interface TimelineRow {
 function buildTimeline(pr: PrData): TimelineRow[] {
   const rows: TimelineRow[] = []
 
-  // Row 1: first known commit (beforeCommit of first force push, or base ref)
-  const initial = pr.events[0]?.beforeCommit ?? pr.baseRef
-  if (!initial) throw new Error('PR has no base ref and no force push history')
+  // Row 1: first known commit (beforeCommit of first force push, or current head)
+  const initial = pr.events[0]?.beforeCommit ?? pr.headRef
+  if (!initial) throw new Error('PR has no head ref and no force push history')
   rows.push({
     commit: initial.abbreviatedOid,
     oid: initial.oid,
     date: formatDate(pr.createdAt),
     author: pr.author?.login ?? 'unknown',
-    label: 'initial',
+    label: LABEL_INITIAL,
   })
 
   // Remaining rows: each force push's afterCommit
@@ -140,7 +154,18 @@ function buildTimeline(pr: PrData): TimelineRow[] {
       oid: ev.afterCommit?.oid ?? '',
       date: formatDate(ev.createdAt),
       author: ev.actor?.login ?? 'unknown',
-      label: 'force',
+      label: LABEL_FORCE,
+    })
+  }
+
+  const lastOid = rows[rows.length - 1].oid
+  if (pr.headRef && pr.headRef.oid !== lastOid) {
+    rows.push({
+      commit: pr.headRef.abbreviatedOid,
+      oid: pr.headRef.oid,
+      date: pr.headRef.date ? formatDate(pr.headRef.date) : '',
+      author: '',
+      label: LABEL_TIP,
     })
   }
 
@@ -170,7 +195,7 @@ function getBaseOptions(pr: PrData, timeline: TimelineRow[], selectedOid: string
   for (let i = 0; i < idx; i++) {
     options.push({
       oid: timeline[i].oid,
-      label: `#${i + 1} ${timeline[i].commit}`,
+      label: `#${i} ${timeline[i].commit}`,
     })
   }
 
@@ -235,6 +260,8 @@ function App() {
   async function doFetch(url: string) {
     setError('')
     setPrData(null)
+    setSelectedOid('')
+    setBaseOid('')
 
     if (!token.trim()) return
 
@@ -408,8 +435,8 @@ function App() {
                     }
                   }}
                 >
-                  <td className="dim label">{row.label}</td>
-                  <td className="dim">{i + 1}</td>
+                  <td className="dim label" title={LABEL_TOOLTIPS[row.label]}>{row.label}</td>
+                  <td className="dim">{row.label === LABEL_TIP ? '∞' : i}</td>
                   <td className="commit">{row.commit}</td>
                   <td>{row.date}</td>
                   <td>{row.author}</td>
