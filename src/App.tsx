@@ -299,7 +299,7 @@ function App() {
     setLoading(true)
     try {
       const data = await fetchTimeline(token.trim(), parsed.owner, parsed.repo, parsed.number)
-      document.title = `+- ${parsed.owner}/${parsed.repo}#${parsed.number} — sherlook`
+      document.title = `+- ${parsed.owner}/${parsed.repo}#${parsed.number} ${data.title} — sherlook`
       addRecentPr(url, data.title)
       setPrData(data)
     } catch (err) {
