@@ -256,7 +256,7 @@ function App() {
     return new URLSearchParams(window.location.search).get('base') || ''
   })
   const [prData, setPrData] = useState<PrData | null>(null)
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(() => !!(new URLSearchParams(window.location.search).get('pull') && token))
   const [error, setError] = useState('')
   const [diff, setDiff] = useState('')
   const [diffLoading, setDiffLoading] = useState(false)
