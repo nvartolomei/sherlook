@@ -268,8 +268,6 @@ function App() {
   async function doFetch(url: string) {
     setError('')
     setPrData(null)
-    setSelectedOid('')
-    setBaseOid('')
 
     if (!token.trim()) return
 
@@ -293,6 +291,8 @@ function App() {
 
   function handleSubmit(e: SyntheticEvent) {
     e.preventDefault()
+    setSelectedOid('')
+    setBaseOid('')
     syncUrl({ pull: prUrl })
     doFetch(prUrl)
   }
