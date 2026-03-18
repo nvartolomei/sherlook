@@ -40,7 +40,7 @@
 }
 
 html {
-  overflow-x: hidden;
+  overflow-x: auto;
 }
 
 body {
@@ -122,6 +122,27 @@ button {
   margin-bottom: 24px;
 }
 
+.pr-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (max-width: 600px) {
+  body {
+    padding: 12px;
+  }
+  .pr-input-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.pr-input-row input {
+  flex: 1;
+  min-width: 0;
+}
+
 .helper {
   font-size: var(--font-sm);
   color: var(--text-dim);
@@ -138,6 +159,10 @@ button {
 
 .dim {
   color: var(--text-dim);
+}
+
+.timeline-wrapper {
+  overflow-x: auto;
 }
 
 .timeline {
@@ -200,6 +225,7 @@ button {
   flex-wrap: wrap;
   gap: 4px;
   margin-bottom: 8px;
+  overflow-x: auto;
 }
 
 .file-entry {

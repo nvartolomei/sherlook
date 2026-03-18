@@ -314,18 +314,17 @@ function App() {
 
       <form onSubmit={handleSubmit}>
         <div className="section">
-          <label>
-            GitHub token:{' '}
+          <div className="pr-input-row">
+            <label htmlFor="gh-token-input">GitHub token:</label>
             <input
+              id="gh-token-input"
               type="password"
               value={token}
               onChange={(e) => setToken(e.target.value)}
-              size={40}
               placeholder="ghp_..."
             />
-          </label>
-          {' '}
-          <ExtLink href="https://github.com/settings/personal-access-tokens/new">create token</ExtLink>
+            <ExtLink href="https://github.com/settings/personal-access-tokens/new">create token</ExtLink>
+          </div>
           <div className="helper">
             Create a fine-grained token: Settings &rarr; Developer settings &rarr; Fine-grained
             tokens &rarr; Generate. Set "Public Repositories (<strong>read-only</strong>)" under Repository access.
@@ -333,18 +332,15 @@ function App() {
           </div>
         </div>
 
-        <div className="section">
-          <label>
-            PR URL:{' '}
-            <input
-              type="text"
-              value={prUrl}
-              onChange={(e) => setPrUrl(e.target.value)}
-              size={50}
-              placeholder="https://github.com/owner/repo/pull/123"
-            />
-          </label>
-          {' '}
+        <div className="section pr-input-row">
+          <label htmlFor="pr-url-input">PR URL:</label>
+          <input
+            id="pr-url-input"
+            type="text"
+            value={prUrl}
+            onChange={(e) => setPrUrl(e.target.value)}
+            placeholder="https://github.com/owner/repo/pull/123"
+          />
           <button type="submit">Fetch</button>
         </div>
       </form>
@@ -352,6 +348,7 @@ function App() {
       {!prData && !loading && getRecentPrs().length > 0 && (
         <div className="section">
           <h2>## recently reviewed</h2>
+          <div className="timeline-wrapper">
           <table className="timeline">
             <thead>
               <tr>
@@ -371,6 +368,7 @@ function App() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       )}
 
@@ -388,6 +386,7 @@ function App() {
               <span key={label}><strong>{label}</strong>&nbsp;=&nbsp;{desc}</span>
             )}
           </div>
+          <div className="timeline-wrapper">
           <table className="timeline">
             <thead>
               <tr>
@@ -419,6 +418,7 @@ function App() {
               ))}
             </tbody>
           </table>
+          </div>
           </>)}
         </div>
       )}
