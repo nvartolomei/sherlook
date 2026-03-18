@@ -1,0 +1,26 @@
+/*
+  # Block clickjacking / iframe embedding
+  X-Frame-Options: DENY
+
+  # Prevent MIME-type sniffing
+  X-Content-Type-Options: nosniff
+
+  # Minimal referrer info sent to third parties
+  Referrer-Policy: strict-origin-when-cross-origin
+
+  # Restrict browser feature access
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+
+  # Full CSP via HTTP header (covers frame-ancestors which meta tag cannot express):
+  #   default-src 'none'       — deny everything not explicitly allowed
+  #   script-src 'self'        — only bundled JS from same origin
+  #   style-src 'self'         — only bundled CSS from same origin
+  #   connect-src 'self'
+  #               https://api.github.com
+  #                            — fetch() only to same origin + GitHub API
+  #   img-src 'self'           — only /public/git.svg and similar local assets
+  #   font-src 'none'          — no external fonts (uses system monospace)
+  #   base-uri 'self'          — prevent <base> tag hijacking
+  #   form-action 'none'       — no form submissions (app uses fetch, not forms)
+  #   frame-ancestors 'none'   — prevent embedding in any frame / iframe
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'self' https://api.github.com; img-src 'self'; font-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none';
