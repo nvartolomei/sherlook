@@ -264,6 +264,7 @@ button {
   overflow-x: auto;
   border: 1px solid var(--border);
   padding: 8px 0;
+  font-size: 13px;
   width: min(100vw, 1200px);
   margin-left: calc(50% - min(50vw, 600px));
   margin-right: calc(50% - min(50vw, 600px));
