@@ -1,38 +1,6 @@
 import { useState, useEffect, type SyntheticEvent } from 'react'
 import { computeInterdiff, parseDiffFiles } from './interdiff'
-
-const LABEL_INITIAL = 'initial'
-const LABEL_FORCE = 'force'
-const LABEL_COMMIT = 'commit(s)'
-
-const LABEL_TOOLTIPS: Record<string, string> = {
-  [LABEL_INITIAL]: 'First known commit on this PR',
-  [LABEL_FORCE]: 'Result of a force push',
-  [LABEL_COMMIT]: 'Commits pushed between force pushes',
-}
-
-interface ForcePushEvent {
-  createdAt: string
-  actor: { login: string } | null
-  beforeCommit: { oid: string; abbreviatedOid: string } | null
-  afterCommit: { oid: string; abbreviatedOid: string } | null
-}
-
-interface BaseRef {
-  oid: string
-  abbreviatedOid: string
-  date?: string
-}
-
-interface PrData {
-  title: string
-  createdAt: string
-  author: { login: string } | null
-  baseRefName: string
-  baseRef: BaseRef | null
-  headRef: BaseRef | null
-  events: ForcePushEvent[]
-}
+import { LABEL_COMMIT, LABEL_TOOLTIPS, buildTimeline, type PrData, type TimelineRow } from './timeline'
 
 const PR_URL_RE = /github\.com\/([^/]+)\/([^/]+)\/pull\/(\d+)/
 
@@ -136,63 +104,6 @@ async function fetchDiff(
 }
 
 
-interface TimelineRow {
-  commit: string
-  oid: string
-  date: string
-  author: string
-  label: string
-}
-
-function buildTimeline(pr: PrData): TimelineRow[] {
-  const rows: TimelineRow[] = []
-
-  // Row 1: first known commit (beforeCommit of first force push, or current head)
-  const initial = pr.events[0]?.beforeCommit ?? pr.headRef
-  if (!initial) throw new Error('PR has no head ref and no force push history')
-  rows.push({
-    commit: initial.abbreviatedOid,
-    oid: initial.oid,
-    date: formatDate(pr.createdAt),
-    author: pr.author?.login ?? 'unknown',
-    label: LABEL_INITIAL,
-  })
-
-  // Remaining rows: each force push's afterCommit
-  for (const ev of pr.events) {
-    // If beforeCommit doesn't match previous row, commits were pushed in between
-    const prevOid = rows[rows.length - 1].oid
-    if (ev.beforeCommit && ev.beforeCommit.oid !== prevOid) {
-      rows.push({
-        commit: ev.beforeCommit.abbreviatedOid,
-        oid: ev.beforeCommit.oid,
-        date: formatDate(ev.createdAt),
-        author: '',
-        label: LABEL_COMMIT,
-      })
-    }
-    rows.push({
-      commit: ev.afterCommit?.abbreviatedOid ?? '?',
-      oid: ev.afterCommit?.oid ?? '',
-      date: formatDate(ev.createdAt),
-      author: ev.actor?.login ?? 'unknown',
-      label: LABEL_FORCE,
-    })
-  }
-
-  const lastOid = rows[rows.length - 1].oid
-  if (pr.headRef && pr.headRef.oid !== lastOid) {
-    rows.push({
-      commit: pr.headRef.abbreviatedOid,
-      oid: pr.headRef.oid,
-      date: pr.headRef.date ? formatDate(pr.headRef.date) : '',
-      author: '',
-      label: LABEL_COMMIT,
-    })
-  }
-
-  return rows
-}
 
 interface BaseOption {
   oid: string
@@ -229,10 +140,6 @@ function defaultBase(pr: PrData, timeline: TimelineRow[], selectedOid: string): 
   if (idx > 0) return timeline[idx - 1].oid
   if (pr.baseRef) return pr.baseRef.oid
   return ''
-}
-
-function formatDate(iso: string) {
-  return new Date(iso).toISOString().replace('T', ' ').slice(0, 16)
 }
 
 function ExtLink({ href, children }: { href: string; children: React.ReactNode }) {
