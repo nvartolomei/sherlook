@@ -259,4 +259,40 @@ describe('computeInterdiff', () => {
     expect(headers.length).toBeGreaterThan(0)
     expect(headers[0]).toMatch(/@@ -50,\d+ \+50,\d+ @@/)
   })
+
+  it('new file in both patches shows only the delta', () => {
+    // Both patches add the same new file with a one-line difference
+    const patchA = [
+      'diff --git a/newfile.txt b/newfile.txt',
+      'new file mode 100644',
+      '--- /dev/null',
+      '+++ b/newfile.txt',
+      '@@ -0,0 +1,3 @@',
+      '+aaa',
+      '+bbb',
+      '+ccc',
+    ].join('\n')
+
+    const patchB = [
+      'diff --git a/newfile.txt b/newfile.txt',
+      'new file mode 100644',
+      '--- /dev/null',
+      '+++ b/newfile.txt',
+      '@@ -0,0 +1,3 @@',
+      '+aaa',
+      '+BBB',
+      '+ccc',
+    ].join('\n')
+
+    const result = computeInterdiff(patchA, patchB)
+
+    expect(result).toBe(
+      'diff --interdiff a/newfile.txt b/newfile.txt\n' +
+      '@@ -1,3 +1,3 @@\n' +
+      ' aaa\n' +
+      '-bbb\n' +
+      '+BBB\n' +
+      ' ccc'
+    )
+  })
 })

@@ -93,6 +93,8 @@ function getNewStart(hunk: Hunk): number {
 }
 
 function rangesOverlap(a: [number, number], b: [number, number]): boolean {
+  // Both [0,0] means both are new-file additions — treat as overlapping
+  if (a[0] === 0 && a[1] === 0 && b[0] === 0 && b[1] === 0) return true
   return a[0] < b[1] && b[0] < a[1]
 }
 
