@@ -349,7 +349,6 @@ function App() {
     let cancelled = false
     setDiffLoading(true)
     setDiffError('')
-    setDiff('')
 
     const work = isInterdiff && targetOid
       ? Promise.all([
@@ -520,13 +519,13 @@ function App() {
           </h2>
           {diffLoading && <div className="dim">Loading diff...</div>}
           {diffError && <div className="error">{diffError}</div>}
-          {!diffLoading && !diffError && diff && (() => {
+          {!diffError && diff && (() => {
             const files = parseDiffFiles(diff)
             const visibleDiff = selectedFile
               ? files.find((f) => f.path === selectedFile)?.chunks ?? ''
               : diff
             return (
-              <>
+              <div className={diffLoading ? 'diff-loading' : ''}>
                 <div className="file-picker">
                   <div
                     className={`file-entry ${selectedFile === null ? 'file-selected' : ''}`}
@@ -560,7 +559,7 @@ function App() {
                     })}
                   </div>
                 </div>
-              </>
+              </div>
             )
           })()}
           {!diffLoading && !diffError && !diff && baseOid && (
