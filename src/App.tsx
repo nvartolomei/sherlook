@@ -478,7 +478,7 @@ function App() {
                       else if (line.startsWith('@@')) cls = 'diff-hunk'
                       else if (line.startsWith('+')) cls = 'diff-add'
                       else if (line.startsWith('-')) cls = 'diff-del'
-                      return <div key={i} className={cls}>{line}</div>
+                      return <div key={i} className={`diff-line-row ${cls}`}>{line}</div>
                     })}
                   </div>
                 </div>

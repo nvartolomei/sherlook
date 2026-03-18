@@ -44,7 +44,14 @@ html {
 }
 
 body {
-  font-family: monospace;
+  font-family:
+    ui-monospace,
+    SFMono-Regular,
+    SF Mono,
+    Menlo,
+    Consolas,
+    Liberation Mono,
+    monospace;
   font-size: 14px;
   line-height: 1.4;
   padding: 24px;
@@ -105,7 +112,9 @@ h2 {
   margin-bottom: 8px;
 }
 
-input, button, select {
+input,
+button,
+select {
   font-family: monospace;
   font-size: 14px;
   padding: 4px 8px;
@@ -131,6 +140,9 @@ button {
 @media (max-width: 600px) {
   body {
     padding: 12px;
+  }
+  .diff {
+    font-size: 12px;
   }
   .pr-input-row {
     flex-direction: column;
@@ -263,7 +275,7 @@ button {
 .diff {
   overflow-x: auto;
   border: 1px solid var(--border);
-  padding: 8px 0;
+  padding: 12px 0;
   width: min(100vw, 1200px);
   margin-left: calc(50% - min(50vw, 600px));
   margin-right: calc(50% - min(50vw, 600px));
@@ -277,6 +289,10 @@ button {
 .diff-inner > div {
   padding: 0 24px;
   white-space: pre;
+}
+
+.diff-line-row {
+  line-height: 1.43;
 }
 
 .diff-add {
@@ -299,8 +315,13 @@ button {
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .diff-loading {
