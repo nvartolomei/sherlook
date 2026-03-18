@@ -16,7 +16,6 @@
   #   script-src 'self'        — only bundled JS from same origin
   #   script-src-attr 'none'   — block all inline event handlers (onclick="", etc.)
   #   style-src 'self'         — only bundled CSS from same origin
-  #   style-src-attr 'none'    — block all inline style="" attributes
   #   connect-src 'self'
   #               https://api.github.com
   #                            — fetch() only to same origin + GitHub API
@@ -28,4 +27,4 @@
   #   form-action 'none'       — no form submissions (app uses fetch, not forms)
   #   frame-ancestors 'none'   — prevent embedding in any frame / iframe
   #   upgrade-insecure-requests — upgrade any accidental http:// loads to https://
-  Content-Security-Policy: default-src 'none'; script-src 'self'; script-src-attr 'none'; style-src 'self'; style-src-attr 'none'; connect-src 'self' https://api.github.com; img-src 'self'; font-src 'none'; object-src 'none'; worker-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests;
+  Content-Security-Policy: default-src 'none'; script-src 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://api.github.com; img-src 'self'; font-src 'none'; object-src 'none'; worker-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests;
