@@ -3,12 +3,12 @@ import { computeInterdiff, parseDiffFiles } from './interdiff'
 
 const LABEL_INITIAL = 'initial'
 const LABEL_FORCE = 'force'
-const LABEL_TIP = 'tip'
+const LABEL_COMMIT = 'commit(s)'
 
 const LABEL_TOOLTIPS: Record<string, string> = {
   [LABEL_INITIAL]: 'First known commit on this PR',
   [LABEL_FORCE]: 'Result of a force push',
-  [LABEL_TIP]: 'Current PR head (contains extra commits after previous timeline entry)',
+  [LABEL_COMMIT]: 'Commits pushed between force pushes',
 }
 
 interface ForcePushEvent {
@@ -160,6 +160,17 @@ function buildTimeline(pr: PrData): TimelineRow[] {
 
   // Remaining rows: each force push's afterCommit
   for (const ev of pr.events) {
+    // If beforeCommit doesn't match previous row, commits were pushed in between
+    const prevOid = rows[rows.length - 1].oid
+    if (ev.beforeCommit && ev.beforeCommit.oid !== prevOid) {
+      rows.push({
+        commit: ev.beforeCommit.abbreviatedOid,
+        oid: ev.beforeCommit.oid,
+        date: formatDate(ev.createdAt),
+        author: '',
+        label: LABEL_COMMIT,
+      })
+    }
     rows.push({
       commit: ev.afterCommit?.abbreviatedOid ?? '?',
       oid: ev.afterCommit?.oid ?? '',
@@ -176,7 +187,7 @@ function buildTimeline(pr: PrData): TimelineRow[] {
       oid: pr.headRef.oid,
       date: pr.headRef.date ? formatDate(pr.headRef.date) : '',
       author: '',
-      label: LABEL_TIP,
+      label: LABEL_COMMIT,
     })
   }
 
@@ -464,7 +475,12 @@ function App() {
           )}
           {error && <div className="error">{error}</div>}
           {loading && <div className="dim">Loading...</div>}
-          {!loading && timeline.length > 0 && (
+          {!loading && timeline.length > 0 && (<>
+          <div className="helper legend">
+            {Object.entries(LABEL_TOOLTIPS).map(([label, desc]) =>
+              <span key={label}><strong>{label}</strong>&nbsp;=&nbsp;{desc}</span>
+            )}
+          </div>
           <table className="timeline">
             <thead>
               <tr>
@@ -488,7 +504,7 @@ function App() {
                   }}
                 >
                   <td className="dim label" title={LABEL_TOOLTIPS[row.label]}>{row.label}</td>
-                  <td className="dim">{row.label === LABEL_TIP ? '∞' : i}</td>
+                  <td className="dim">{row.label === LABEL_COMMIT ? '∞' : i}</td>
                   <td className="commit">{row.commit}</td>
                   <td>{row.date}</td>
                   <td>{row.author}</td>
@@ -496,7 +512,7 @@ function App() {
               ))}
             </tbody>
           </table>
-          )}
+          </>)}
         </div>
       )}
 
