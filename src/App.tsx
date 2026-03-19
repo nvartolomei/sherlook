@@ -444,9 +444,9 @@ function App() {
           {diffError && <div className="error">{diffError}</div>}
           {!diffError && diff && (() => {
             const files = parseDiffFiles(diff)
-            const visibleDiff = selectedFile
-              ? files.find((f) => f.path === selectedFile)?.chunks ?? ''
-              : diff
+            const visibleFiles = selectedFile
+              ? files.filter((f) => f.path === selectedFile)
+              : files
             return (
               <div className={diffLoading ? 'diff-loading' : ''}>
                 <div className="file-picker">
@@ -469,19 +469,22 @@ function App() {
                     </div>
                   ))}
                 </div>
-                <div className="diff">
-                  <div className="diff-inner">
-                    {visibleDiff.split('\n').map((line, i) => {
-                      let cls = ''
-                      if (line.startsWith('diff --interdiff') || line.startsWith('diff --git')) cls = 'diff-file'
-                      else if (line.startsWith('+++ ') || line.startsWith('--- ')) cls = 'diff-file'
-                      else if (line.startsWith('@@')) cls = 'diff-hunk'
-                      else if (line.startsWith('+')) cls = 'diff-add'
-                      else if (line.startsWith('-')) cls = 'diff-del'
-                      return <div key={i} className={`diff-line-row ${cls}`}>{line}</div>
-                    })}
+                {visibleFiles.map((f) => (
+                  <div key={f.path} className="diff">
+                    <div className="diff-file-header">{f.path}</div>
+                    <div className="diff-inner">
+                      {f.chunks.split('\n').map((line, i) => {
+                        let cls = ''
+                        if (line.startsWith('diff --interdiff') || line.startsWith('diff --git')) cls = 'diff-file'
+                        else if (line.startsWith('+++ ') || line.startsWith('--- ')) cls = 'diff-file'
+                        else if (line.startsWith('@@')) cls = 'diff-hunk'
+                        else if (line.startsWith('+')) cls = 'diff-add'
+                        else if (line.startsWith('-')) cls = 'diff-del'
+                        return <div key={i} className={`diff-line-row ${cls}`}>{line}</div>
+                      })}
+                    </div>
                   </div>
-                </div>
+                ))}
               </div>
             )
           })()}

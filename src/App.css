@@ -275,24 +275,31 @@ button {
 .diff {
   overflow-x: auto;
   border: 1px solid var(--border);
-  padding: 12px 0;
   width: min(100vw, 1200px);
   margin-left: calc(50% - min(50vw, 600px));
   margin-right: calc(50% - min(50vw, 600px));
+  margin-bottom: 12px;
+}
+
+.diff-file-header {
+  padding: 8px 24px;
+  font-weight: bold;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
 }
 
 .diff-inner {
   display: inline-block;
   min-width: 100%;
-}
-
-.diff-inner > div {
-  padding: 0 24px;
-  white-space: pre;
+  padding-top: 8px;
 }
 
 .diff-line-row {
-  line-height: 1.43;
+  height: 1.40em;
+  line-height: 1.40em;
+    padding: 0 24px;
+  white-space: pre;
 }
 
 .diff-add {
